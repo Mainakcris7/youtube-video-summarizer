@@ -1,0 +1,13 @@
+[project]
+name = "youtube-video-summarizer"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "dotenv>=0.9.9",
+    "faiss-cpu>=1.13.1",
+    "langchain[openai]>=1.1.2",
+    "langgraph>=1.0.4",
+    "youtube-transcript-api>=1.2.3",
+]
