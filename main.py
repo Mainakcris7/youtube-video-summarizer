@@ -1,38 +1,67 @@
 from youtube_transcript_api import YouTubeTranscriptApi
-import requests
 import os
+import json
 from warnings import filterwarnings
+from utils import extract_video_id, get_processed_response_time_slices
+from llm.agents import translate_to_english
 
 filterwarnings('ignore')
 
-session = requests.Session()
-session.verify = False
+languages = [
+    'en',       # English
+    'hi',       # Hindi
+    'es',       # Spanish
+    'fr',       # French
+    'de',       # German
+    'pt',       # Portuguese
+    'ru',       # Russian
+    'ar',       # Arabic
+    'ja',       # Japanese
+    'ko',       # Korean
+    'zh-Hans',  # Chinese Simplified
+    'zh-Hant',  # Chinese Traditional
+    'id',       # Indonesian
+    'it',       # Italian
+    'bn',       # Bengali
+]
 
-# video_id = "o1ZOEVx_Tr8"
-video_id = "keKEjMTFKSA"
-ytt_api = YouTubeTranscriptApi(http_client=session)
 
-print("Started...")
-res = ytt_api.fetch(video_id, languages=['en', 'hi'])
-result_dict = res.to_raw_data()
+def main():
+    video_id = extract_video_id("https://www.youtube.com/watch?v=pi9-m8RNqJo")
+    print(video_id)
+    # video_id = "keKEjMTFKSA"
+    ytt_api = YouTubeTranscriptApi()
 
-"""
-Details of the Units
-start: This value represents the exact moment (in seconds from the beginning of the video) when the transcribed text snippet starts.
+    print("Transcription started...")
+    res = ytt_api.fetch(video_id, languages=languages)
+    result_dict = res.to_raw_data()
+    print("Transcription done.")
 
-duration: This value represents the length of time (in seconds) that the transcribed text snippet lasted.
-"""
-print(f"LANGUAGE: {res.language}")
-# texts = [(result['start'], result['text']) for result in result_dict]
-texts = [f"#TIME IN SECOND:{result['start']}# {result['text']}" for result in result_dict]
+    transcription_lang = res.language
+    print(f"Transcription Language: {transcription_lang}")
 
-whole_text = " ".join(texts)
-print(whole_text)
+    processed_output = get_processed_response_time_slices(
+        result=result_dict, time=60)
 
-dir_path = "data"
-file_name = "transcription.txt"
+    dir_path = "data"
+    file_name_1 = "transcription.json"
+    file_name_2 = "processed.json"
+    file_name_3 = "translated.json"
 
-with open(file=os.path.join(dir_path, file_name), mode = 'w', encoding='utf-8') as f:
-    f.write(whole_text)
-    
-print("Success")
+    # with open(file=os.path.join(dir_path, file_name_1), mode='w') as f:
+    #     json.dump(result_dict, f, indent=5)
+
+    # with open(file=os.path.join(dir_path, file_name_2), mode='w') as f:
+    #     json.dump(processed_output, f, indent=5)
+
+    if 'english' not in transcription_lang.lower():
+        translated_output = translate_to_english(
+            chunks=processed_output, from_lang=transcription_lang.replace(' (auto-generated)', ''))
+        with open(file=os.path.join(dir_path, file_name_3), mode='w') as f:
+            json.dump(translated_output, f, indent=5)
+
+    print("Success")
+
+
+if __name__ == '__main__':
+    main()
