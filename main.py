@@ -3,7 +3,8 @@ import os
 import json
 from warnings import filterwarnings
 from utils import extract_video_id, get_processed_response_time_slices
-from llm.agents import translate_to_english
+# from llm.agents import translate_to_english
+from llm.translator import translate_to_english
 
 filterwarnings('ignore')
 
@@ -56,8 +57,8 @@ def main():
 
     if 'english' not in transcription_lang.lower():
         translated_output = translate_to_english(
-            chunks=processed_output, from_lang=transcription_lang.replace(' (auto-generated)', ''))
-        with open(file=os.path.join(dir_path, file_name_3), mode='w') as f:
+            chunks=processed_output, from_lang=res.language_code)
+        with open(file=os.path.join(dir_path, 'translated2.json'), mode='w') as f:
             json.dump(translated_output, f, indent=5)
 
     print("Success")
