@@ -61,3 +61,20 @@ def get_processed_response_time_slices(result: list[dict], time: int | float) ->
 
     output.append(curr_res)
     return output
+
+
+def parse_segments(translated: str):
+    result = {}
+    parts = translated.split("<SEG_")
+
+    for part in parts:
+        part = part.strip()
+        if not part:
+            continue
+
+        seg_id, content = part.split(">", 1)
+        seg_id = int(seg_id)
+
+        result[seg_id] = content.strip()
+
+    return result
