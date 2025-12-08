@@ -1,16 +1,23 @@
 from dotenv import load_dotenv
-from langchain_google_genai import ChatGoogleGenerativeAI
+import os
+# from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import AzureChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from utils import parse_segments
 
 load_dotenv()
 
-llm = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash-lite",
-    temperature=0.2
+# llm = ChatGoogleGenerativeAI(
+#     model="gemini-2.5-flash-lite",
+#     temperature=0.2
+# )
+llm = AzureChatOpenAI(
+    api_key=os.environ["AZURE_OPENAI_GPT4O_API_KEY"],
+    azure_deployment=os.environ["AZURE_OPENAI_GPT4O_DEPLOYMENT_NAME"],
+    azure_endpoint=os.environ["AZURE_OPENAI_GPT4O_ENDPOINT"],
+    api_version=os.environ["AZURE_OPENAI_GPT4O_API_VERSION"]
 )
-
 
 def translate_to_english(chunks: list[dict], from_lang: str, max_duration: int | float) -> list[dict]:
     """
