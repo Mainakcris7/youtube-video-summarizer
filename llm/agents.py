@@ -1,9 +1,10 @@
 from dotenv import load_dotenv
 import os
 import copy
+from llm.vector_store import load_vector_store
 from utils import get_processed_response_time_slices
 # from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_openai import AzureChatOpenAI
+from langchain_openai import AzureChatOpenAI, AzureOpenAIEmbeddings
 from langchain.tools import tool
 from langgraph.graph.message import add_messages
 from langgraph.graph import StateGraph, START, END
@@ -27,10 +28,17 @@ llm = AzureChatOpenAI(
     api_version=os.environ["AZURE_OPENAI_GPT4O_API_VERSION"]
 )
 
+embedding = AzureOpenAIEmbeddings(
+    api_key=os.environ["AZURE_OPENAI_EMBEDDINGS_ADA_API_KEY"],
+    api_version=os.environ["AZURE_OPENAI_API_EMBEDDINGS_ADA_VERSION"],
+    azure_deployment=os.environ["AZURE_OPENAI_EMBEDDINGS_ADA_DEPLOYEMENT_NAME"],
+    azure_endpoint=os.environ["AZURE_OPENAI_API_EMBEDDINGS_ADA_ENDPOINT"]
+)
+
 class AgentState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], add_messages]
 
-def create_agent(data: list[dict], summarization_group_time: int | float = 180):
+def create_agent(data: list[dict], vector_db_path: str, summarization_group_time: int | float = 180):
     processed_data = copy.deepcopy(data)
     
     # Merge into ~3-minute blocks (For better summarization)
@@ -175,10 +183,36 @@ def create_agent(data: list[dict], summarization_group_time: int | float = 180):
         
         return summaries
     
-    
+    @tool(name_or_callable='Question_Answering', description='Use this to find and answer questions about the content of the YouTube videos')
+    def qna_rag(query: str) -> str:
+        """
+        Finds and provides information about the content of a YouTube video based on a query.
+        
+        Args:
+        query: The search term for the desired YouTube video.
+
+        Returns:
+            Text response(s) containing the video information along with timestamp(s) about the query.
+        """
+        vector_store = load_vector_store(vector_db_path)
+        
+        retriever = vector_store.as_retriever(
+            search_type="similarity_score_threshold",
+            search_kwargs={"k": 3, "score_threshold": 0.1}
+        )
+        
+        docs = retriever.invoke(query)
+        
+        if not docs:
+            return "No relevant informations can be found!"
+
+        context = [f"FROM: {d.metadata['start_time']}s to {d.metadata['end_time']}s\n{d.page_content}" for d in docs]
+        
+        return "\n\n".join(context)
+
     # Creating the graph
     global llm
-    llm = llm.bind_tools([get_time_related_info, summarize_video, summarize_video_per_given_time])
+    llm = llm.bind_tools([get_time_related_info, summarize_video, summarize_video_per_given_time, qna_rag])
     
     def llm_node(state: AgentState) -> AgentState:
         result = llm.invoke(state['messages'])
@@ -193,7 +227,7 @@ def create_agent(data: list[dict], summarization_group_time: int | float = 180):
     graph = StateGraph(AgentState)
     
     graph.add_node('llm_node', llm_node)
-    graph.add_node('tools_node', ToolNode(tools = [get_time_related_info, summarize_video, summarize_video_per_given_time]))
+    graph.add_node('tools_node', ToolNode(tools = [get_time_related_info, summarize_video, summarize_video_per_given_time, qna_rag]))
     
     graph.add_edge(START, 'llm_node')
     graph.add_conditional_edges(

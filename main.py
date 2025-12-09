@@ -6,6 +6,7 @@ from warnings import filterwarnings
 from utils import extract_video_id, get_processed_response_time_slices
 from llm.translator import translate_to_english
 from llm.agents import AgentState, create_agent
+from llm.vector_store import create_vector_store
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 
 filterwarnings('ignore')
@@ -30,6 +31,8 @@ languages = [
 data_path = "data"
 translation_dir = 'translations'
 transcription_dir = 'transcriptions'
+
+vector_db_path = os.path.join('db', 'faiss_db')
 
 
 def main():
@@ -95,9 +98,11 @@ def main():
 
     if translated_output:
         processed_output = translated_output
-        
     
-    agent = create_agent(data = processed_output, summarization_group_time=180)
+    # Create vector store for RAG
+    create_vector_store(processed_output, max_duration=180, vector_db_path=os.path.join(vector_db_path, video_id))
+    
+    agent = create_agent(data = processed_output, summarization_group_time=180, vector_db_path = os.path.join(vector_db_path, video_id))
     
     chat_history = []
     
@@ -114,30 +119,40 @@ def main():
     
     3. When the user asks about summarizing the video per given time frame, call the 'Youtube_Video_Summarizer_Per_Given_Time_Chunk' tool. When giving the answer, convert seconds to minutes format. For example 80s means 1:20 minute.
     
+    4. When using 'Question_Answering', attach the timestamps in minutes form, after the response of the user query. TRY TO APPROXIMATE, the timestamp range (NARROW DOWN based on where you are finding the answer, for example, if you get the answer in the middle of the timestamp range (e.g, 150s to 250s), narrow down it to (175s to 225s). Example: For an initial range of 150s to 250s where the answer is central, provide a narrowed range like 175s to 225s, which translates to (Starts at 2:55 - Ends at 3:45) in the final output 
+    e.g, 
+    <RESPONSE>
+    source: [1:20 to 1:45, 2:30 to 2:50]    
+    
     DO NOT HALUCINATE. If you don't know the answer, simply say Sorry I couldn't find the answer of your query, do not make things by your own!
     """
     
     chat_history.append(SystemMessage(content = system_prompt))
     
-    user_input = input("User: ")
-    
-    chat_history.append(HumanMessage(content = user_input))
-    
-    result = agent.invoke(
-        {'messages': chat_history}
-    )
-    
-    last_message = result['messages'][-1]
+    while True:
+        user_input = input("User: ")
+        
+        if user_input in ['bye', 'exit']:
+            print("Thank you!\nExitting...")
+            break
+        
+        chat_history.append(HumanMessage(content = user_input))
+        
+        result = agent.invoke(
+            {'messages': chat_history}
+        )
+        
+        last_message = result['messages'][-1]
 
-    if isinstance(last_message.content, list):
-        if last_message.content[0]['text']:
-            print(f"AI: {last_message.content[0]['text']}")
-        elif last_message.content[0]['message']:
-            print(f"AI: {last_message.content[0]['message']}")
-    else:
-        print(f"AI: {last_message.content}")
+        if isinstance(last_message.content, list):
+            if last_message.content[0]['text']:
+                print(f"AI: {last_message.content[0]['text']}")
+            elif last_message.content[0]['message']:
+                print(f"AI: {last_message.content[0]['message']}")
+        else:
+            print(f"AI: {last_message.content}")
 
-    # chat_history.append(last_message)
+        chat_history.append(last_message)
 
 if __name__ == '__main__':
     main()
