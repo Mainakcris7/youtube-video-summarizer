@@ -39,6 +39,14 @@ class AgentState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], add_messages]
 
 def create_agent(data: list[dict], vector_db_path: str, summarization_group_time: int | float = 180):
+    """
+    Creates the AI YouTube Video agent.
+    
+    Args
+        data: Transcription data
+        vector_db_path: Vector database path
+        summarization_group_time: Time limit for each summarization chunk
+    """
     processed_data = copy.deepcopy(data)
     
     # Merge into ~3-minute blocks (For better summarization)
