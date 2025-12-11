@@ -36,22 +36,23 @@ VECTOR_DB_PATH = os.path.join('db', 'faiss_db')
 
 # Per chunk time durations
 TRANSCRIBED_TEXT_TIME_DURATION = 60 # ~1 minute per chunk
-TRANSLATION_TIME_DURATION = 180 # ~3 minutes per chunk
-VECTOR_STORE_TIME_DURATION = 180 # ~3 minutes per chunk
-SUMMARIZATION_TIME_DURATION = 180 # ~3 minutes per chunk
+TRANSLATION_TIME_DURATION = 120 # ~2 minutes per chunk
+VECTOR_STORE_TIME_DURATION = 120 # ~2 minutes per chunk
+SUMMARIZATION_TIME_DURATION = 120 # ~2 minutes per chunk
 
 def main():
     
-    if TRANSLATION_TIME_DURATION > TRANSCRIBED_TEXT_TIME_DURATION:
-        raise ValueError("Translation chunk time duration can't be greater than transcribed text time duration!")
+    if TRANSLATION_TIME_DURATION < TRANSCRIBED_TEXT_TIME_DURATION:
+        raise ValueError("Translation chunk time duration can't be lesser than transcribed text time duration!")
     
-    if VECTOR_STORE_TIME_DURATION > TRANSCRIBED_TEXT_TIME_DURATION:
-        raise ValueError("Vector store chunk time duration can't be greater than transcribed text time duration!")
+    if VECTOR_STORE_TIME_DURATION < TRANSCRIBED_TEXT_TIME_DURATION:
+        raise ValueError("Vector store chunk time duration can't be lesser than transcribed text time duration!")
     
-    if SUMMARIZATION_TIME_DURATION > TRANSCRIBED_TEXT_TIME_DURATION:
-        raise ValueError("Summarization chunk time duration can't be greater than transcribed text time duration!")
+    if SUMMARIZATION_TIME_DURATION < TRANSCRIBED_TEXT_TIME_DURATION:
+        raise ValueError("Summarization chunk time duration can't be lesser than transcribed text time duration!")
     
-    video_id = extract_video_id("https://www.youtube.com/watch?v=pi9-m8RNqJo")
+    # video_id = extract_video_id("https://www.youtube.com/watch?v=pi9-m8RNqJo")
+    video_id = extract_video_id("https://www.youtube.com/watch?v=JjRiW_HpMoM")
     file_name = f"{video_id}.json"
     print(f"Video id: {video_id}")
     # TO AVOID SSL Errors
@@ -84,6 +85,8 @@ def main():
     # Merge the transcriptions into specified time chunks
     processed_output = get_processed_response_time_slices(
         result=transcripted_data['data'], time=TRANSCRIBED_TEXT_TIME_DURATION)
+
+    translated_output = []
 
     # Translate the transcriptions, if not in english
     if 'english' not in transcription_lang.lower():

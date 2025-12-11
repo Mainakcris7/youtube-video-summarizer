@@ -17,3 +17,6 @@ db/**
 
 data/
 data/**
+
+transcriptions/**
+translations/**
