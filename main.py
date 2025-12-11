@@ -3,7 +3,7 @@ import json
 from requests import Session
 from warnings import filterwarnings
 from youtube_transcript_api import YouTubeTranscriptApi
-from utils import extract_video_id, get_processed_response_time_slices
+from utils import extract_video_id, get_grouped_transcriptions, get_grouped_data
 from llm.translator import translate_to_english
 from llm.agents import create_agent
 from llm.vector_store import create_vector_store
@@ -83,8 +83,8 @@ def main():
     print(f"Transcription Language: {transcription_lang}")
 
     # Merge the transcriptions into specified time chunks
-    processed_output = get_processed_response_time_slices(
-        result=transcripted_data['data'], time=TRANSCRIBED_TEXT_TIME_DURATION)
+    processed_output = get_grouped_transcriptions(
+        transcriptions=transcripted_data['data'], time=TRANSCRIBED_TEXT_TIME_DURATION)
 
     translated_output = []
 

@@ -1,7 +1,7 @@
 import os
 import copy
 from dotenv import load_dotenv
-from utils import get_processed_response_time_slices
+from utils import get_grouped_data
 from langchain_openai import AzureOpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
@@ -41,7 +41,7 @@ def create_vector_store(data: list[dict], max_duration: int | float, vector_db_p
     processed_data = copy.deepcopy(data)
     
     print("Creating vector store...")
-    rag_data = get_processed_response_time_slices(processed_data, max_duration)
+    rag_data = get_grouped_data(processed_data, max_duration)
     
     rag_documents = [Document(d['text'], metadata = {'start_time': d['start'], 'end_time': d['end']}) for d in rag_data]
     

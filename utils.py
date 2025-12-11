@@ -30,32 +30,64 @@ def extract_video_id(url: str):
     return None
 
 
-def get_processed_response_time_slices(result: list[dict], time: int | float) -> list[dict]:
+def get_grouped_transcriptions(transcriptions: list[dict], time: int | float) -> list[dict]:
     """
-    Returns grouped result of the transcribed text with the given time window
-    - For shorts, it is recommended to pass 10 (second)
+    Returns grouped transcription of the transcribed text with the given time window
 
-    :param result: Dictionary version of the transcription result (obtained through res.to_raw_data())
-    :type result: list[dict]
+    :param transcriptions: Dictionary version of the transcription result (obtained through res.to_raw_data())
+    :type transcriptions: list[dict]
     :param time: The given time (in second) frame to which the transcription will be grouped
     :type time: int | float
     """
     curr_res = {
-        'start': result[0]['start'],
-        'end': result[0]['start'],
-        'text': result[0]['text']
+        'start': transcriptions[0]['start'],
+        'end': transcriptions[0]['start'],
+        'text': transcriptions[0]['text']
     }
 
     output = []
-    for d in result[1:]:
+    for tr in transcriptions[1:]:
+        if tr['start'] - curr_res['start'] <= time:
+            curr_res['text'] += (" " + tr['text'])
+            curr_res['end'] = tr['start']
+        else:
+            output.append(curr_res)
+            curr_res = {
+                'start': tr['start'],
+                'end': tr['start'],
+                'text': tr['text']
+            }
+
+    output.append(curr_res)
+    return output
+
+def get_grouped_data(data: list[dict], time: int | float) -> list[dict]:
+    """
+    Use it only after initital grouping using `get_grouped_transcriptions` has been done for the raw transcription data.
+    
+    Returns grouped transcription of the processed transcribed text with the given time window
+
+    :param data: Dictionary version of the transcription result (obtained through res.to_raw_data())
+    :type data: list[dict]
+    :param time: The given time (in second) frame to which the transcription will be grouped
+    :type time: int | float
+    """
+    curr_res = {
+        'start': data[0]['start'],
+        'end': data[0]['end'],
+        'text': data[0]['text']
+    }
+
+    output = []
+    for d in data[1:]:
         if d['start'] - curr_res['start'] <= time:
             curr_res['text'] += (" " + d['text'])
-            curr_res['end'] = d['start']
+            curr_res['end'] = d['end']
         else:
             output.append(curr_res)
             curr_res = {
                 'start': d['start'],
-                'end': d['start'],
+                'end': d['end'],
                 'text': d['text']
             }
 

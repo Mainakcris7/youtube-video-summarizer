@@ -2,7 +2,7 @@ from dotenv import load_dotenv
 import os
 import copy
 from llm.vector_store import load_vector_store
-from utils import get_processed_response_time_slices
+from utils import get_grouped_data
 # from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import AzureChatOpenAI, AzureOpenAIEmbeddings
 from langchain.tools import tool
@@ -50,7 +50,7 @@ def create_agent(data: list[dict], vector_db_path: str, summarization_group_time
     processed_data = copy.deepcopy(data)
     
     # Merge into ~3-minute blocks (For better summarization)
-    summarization_data = get_processed_response_time_slices(processed_data, summarization_group_time)
+    summarization_data = get_grouped_data(processed_data, summarization_group_time)
 
     @tool(name_or_callable='Get_Time_Related_Information', description='Useful when the user asks about what happened in the video, in a particular time', parse_docstring=True)
     def get_time_related_info(time_in_sec: int | float) -> str | None:
@@ -176,7 +176,7 @@ def create_agent(data: list[dict], vector_db_path: str, summarization_group_time
         if time_in_sec <= 25:
             return "Error: Time frame must be greater than 10 seconds."
         
-        summarization_data_time_wise = get_processed_response_time_slices(processed_data, time_in_sec)
+        summarization_data_time_wise = get_grouped_data(processed_data, time_in_sec)
         map_chain_template = [
             ('system', "You are a helpful AI assistant. Your job is to efficiently summarize the ducument chunk that is passed to you by the user. DON'T HALUCINATE, DON'T MAKE UP STORIES, summarize solely based on the text that is provided to you."),
             ('user', 'Please summarize the chunk: {document}')

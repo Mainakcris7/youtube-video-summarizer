@@ -52,7 +52,7 @@ def translate_to_english(chunks: list[dict], from_lang: str, max_duration: int |
     for i, chunk in enumerate(chunks):
         chunk["seg_id"] = i + 1  # <SEG_1>, <SEG_2>, ...
 
-    # Merge into ~3-minute blocks
+    # Merge into (e.g. ~3-minute) blocks
     blocks = []
     curr_block = [{
         'start': chunks[0]['start'],
