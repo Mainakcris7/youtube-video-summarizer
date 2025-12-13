@@ -34,41 +34,57 @@ TRANSLATION_DIR = 'translations'
 TRANSCRIPTION_DIR = 'transcriptions'
 VECTOR_DB_PATH = os.path.join('db', 'faiss_db')
 
-# Per chunk time durations
-TRANSCRIBED_TEXT_TIME_DURATION = 60 # ~1 minute per chunk
-TRANSLATION_TIME_DURATION = 120 # ~2 minutes per chunk
-VECTOR_STORE_TIME_DURATION = 120 # ~2 minutes per chunk
-SUMMARIZATION_TIME_DURATION = 120 # ~2 minutes per chunk
+# Per chunk time durations (in seconds, change as needed)
+TRANSCRIBED_TEXT_TIME_DURATION = 60  # ~1 minute per chunk
+TRANSLATION_TIME_DURATION = 120  # ~2 minutes per chunk
+VECTOR_STORE_TIME_DURATION = 120  # ~2 minutes per chunk
+SUMMARIZATION_TIME_DURATION = 120  # ~2 minutes per chunk
+
 
 def main():
-    
+
     if TRANSLATION_TIME_DURATION < TRANSCRIBED_TEXT_TIME_DURATION:
-        raise ValueError("Translation chunk time duration can't be lesser than transcribed text time duration!")
-    
+        raise ValueError(
+            "Translation chunk time duration can't be lesser than transcribed text time duration!")
+
     if VECTOR_STORE_TIME_DURATION < TRANSCRIBED_TEXT_TIME_DURATION:
-        raise ValueError("Vector store chunk time duration can't be lesser than transcribed text time duration!")
-    
+        raise ValueError(
+            "Vector store chunk time duration can't be lesser than transcribed text time duration!")
+
     if SUMMARIZATION_TIME_DURATION < TRANSCRIBED_TEXT_TIME_DURATION:
-        raise ValueError("Summarization chunk time duration can't be lesser than transcribed text time duration!")
-    
+        raise ValueError(
+            "Summarization chunk time duration can't be lesser than transcribed text time duration!")
+
     # video_id = extract_video_id("https://www.youtube.com/watch?v=pi9-m8RNqJo")
-    video_id = extract_video_id("https://www.youtube.com/watch?v=JjRiW_HpMoM")
+    # video_id = extract_video_id("https://www.youtube.com/watch?v=JjRiW_HpMoM")
+
+    video_url = input("Enter the YouTube video URL: ")
+    video_id = extract_video_id(video_url)
+
     file_name = f"{video_id}.json"
     print(f"Video id: {video_id}")
-    # TO AVOID SSL Errors
-    session = Session()
-    session.verify = False
-    ytt_api = YouTubeTranscriptApi(http_client=session)
+
+    # TO AVOID SSL Errors (OPTIONAL)
+    # session = Session()
+    # session.verify = False
+    # ytt_api = YouTubeTranscriptApi(http_client=session)
+    ytt_api = YouTubeTranscriptApi()
 
     # Get transcriptions
     transcription_file_path = os.path.join(TRANSCRIPTION_DIR, file_name)
-    if(os.path.exists(transcription_file_path)):
+    if (os.path.exists(transcription_file_path)):
         print('Transcription already exists.')
         with open(transcription_file_path, 'r') as f:
             transcripted_data = json.load(f)
     else:
         print("Transcription started...")
-        res = ytt_api.fetch(video_id, languages=languages)
+        try:
+            res = ytt_api.fetch(video_id, languages=languages)
+        except Exception as e:
+            print(f"Error during transcription: {e}\
+                  \nIt can be due to the invalid video id or network issues.")
+            return
+
         result_dict = res.to_raw_data()
         transcripted_data = {
             'language': res.language,
@@ -91,7 +107,7 @@ def main():
     # Translate the transcriptions, if not in english
     if 'english' not in transcription_lang.lower():
         translation_file_path = os.path.join(TRANSLATION_DIR, file_name)
-        if(os.path.exists(translation_file_path)):
+        if (os.path.exists(translation_file_path)):
             print('Translation already exists.')
             with open(translation_file_path, 'r') as f:
                 translated_output = json.load(f)
@@ -103,15 +119,17 @@ def main():
 
     if translated_output:
         processed_output = translated_output
-    
+
     # Create vector store for RAG
-    create_vector_store(processed_output, max_duration=VECTOR_STORE_TIME_DURATION, vector_db_path=os.path.join(VECTOR_DB_PATH, video_id))
-    
+    create_vector_store(processed_output, max_duration=VECTOR_STORE_TIME_DURATION,
+                        vector_db_path=os.path.join(VECTOR_DB_PATH, video_id))
+
     # Create agent
-    agent = create_agent(data = processed_output, summarization_group_time=SUMMARIZATION_TIME_DURATION, vector_db_path = os.path.join(VECTOR_DB_PATH, video_id))
-    
+    agent = create_agent(data=processed_output, summarization_group_time=SUMMARIZATION_TIME_DURATION,
+                         vector_db_path=os.path.join(VECTOR_DB_PATH, video_id))
+
     chat_history = []
-    
+
     system_prompt = """
     You are a helpful AI assistant who excels in youtube video summarizing, getting particular information from the video, answering user queries efficiently. Based on the tools and knowledge uyou have please address the user queries correctly.
     
@@ -132,23 +150,23 @@ def main():
     
     DO NOT HALUCINATE. If you don't know the answer, simply say Sorry I couldn't find the answer of your query, do not make things by your own!
     """
-    
-    chat_history.append(SystemMessage(content = system_prompt))
-    
+
+    chat_history.append(SystemMessage(content=system_prompt))
+
     # Start chatting with the agent
     while True:
         user_input = input("User: ")
-        
+
         if user_input in ['bye', 'exit']:
             print("Thank you!\nExitting...")
             break
-        
-        chat_history.append(HumanMessage(content = user_input))
-        
+
+        chat_history.append(HumanMessage(content=user_input))
+
         result = agent.invoke(
             {'messages': chat_history}
         )
-        
+
         last_message = result['messages'][-1]
 
         if isinstance(last_message.content, list):
@@ -160,6 +178,7 @@ def main():
             print(f"AI: {last_message.content}")
 
         chat_history.append(last_message)
+
 
 if __name__ == '__main__':
     main()
