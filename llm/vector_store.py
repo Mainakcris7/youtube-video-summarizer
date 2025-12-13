@@ -3,11 +3,13 @@ import copy
 from dotenv import load_dotenv
 from utils import get_grouped_data
 from langchain_openai import AzureOpenAIEmbeddings
+# from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
 
 load_dotenv()
 
+# embedding = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001")
 embedding = AzureOpenAIEmbeddings(
     api_key=os.environ["AZURE_OPENAI_EMBEDDINGS_ADA_API_KEY"],
     api_version=os.environ["AZURE_OPENAI_API_EMBEDDINGS_ADA_VERSION"],
@@ -34,29 +36,31 @@ def create_vector_store(data: list[dict], max_duration: int | float, vector_db_p
                       relevance.
         vector_db_path: File path to save the resulting vector database.
     """
-    if(os.path.exists(vector_db_path)):
+    if (os.path.exists(vector_db_path)):
         print("Vector DB already exists!")
         return
-    
+
     processed_data = copy.deepcopy(data)
-    
+
     print("Creating vector store...")
     rag_data = get_grouped_data(processed_data, max_duration)
-    
-    rag_documents = [Document(d['text'], metadata = {'start_time': d['start'], 'end_time': d['end']}) for d in rag_data]
-    
+
+    rag_documents = [Document(d['text'], metadata={
+                              'start_time': d['start'], 'end_time': d['end']}) for d in rag_data]
+
     store = FAISS.from_documents(
         documents=rag_documents,
         embedding=embedding
     )
     store.save_local(vector_db_path)
-    
+
     print("Vector store created succesfully!")
     print("First document info: ")
     print(f"Size: {len(rag_documents[0].page_content)}")
     print(f"Start: {rag_documents[0].metadata['start_time']}")
     print(f"End: {rag_documents[0].metadata['end_time']}")
-    
+
+
 def load_vector_store(vector_db_path: str) -> FAISS:
     """
     Loads a persisted FAISS vector index from the local path.
@@ -75,11 +79,11 @@ def load_vector_store(vector_db_path: str) -> FAISS:
     """
     if not os.path.exists(vector_db_path):
         raise ValueError("Vector db is not present!")
-    
+
     vector_store = FAISS.load_local(
         folder_path=vector_db_path,
         embeddings=embedding,
         allow_dangerous_deserialization=True
     )
-    
+
     return vector_store
